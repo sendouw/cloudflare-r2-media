@@ -1,0 +1,10 @@
+{
+  "name": "serverlesswp/cloudflare-r2-media",
+  "description": "Persist WordPress uploads to a Cloudflare R2 bucket and rewrite media URLs.",
+  "type": "wordpress-plugin",
+  "license": "MIT",
+  "require": {
+    "php": "^8.0",
+    "aws/aws-sdk-php": "^3.300"
+  }
+}
