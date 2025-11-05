@@ -141,6 +141,27 @@ To serve media from your own domain (e.g., `cdn.yourdomain.com`):
 3. **Rewrite**: WordPress URLs are rewritten to point to R2
 4. **Serve**: Your serverless site serves media directly from R2 (CDN-backed)
 
+## Migrating Existing Media
+
+If you have images uploaded before installing the plugin, use the **R2 Migration Tools**:
+
+1. **Set migration key** in Vercel:
+   - Add `R2_MIGRATION_KEY` environment variable (any random secret string)
+   - Redeploy
+
+2. **Access migration tools**:
+   ```
+   https://yoursite.com/wp-content/plugins/cloudflare-r2-media/r2-tools.php?key=YOUR_MIGRATION_KEY
+   ```
+
+3. **Use the dashboard** to:
+   - ✅ Check configuration
+   - ✅ View current image URLs
+   - ✅ Replace old URLs with R2 URLs
+   - ✅ Upload files to R2 (if they exist locally)
+
+See [MIGRATION.md](MIGRATION.md) for detailed migration guide.
+
 ## Troubleshooting
 
 ### Plugin not working after deployment?
@@ -165,6 +186,14 @@ The plugin only activates when all required environment variables are set. Check
 1. All 4 required env vars are set (R2_BUCKET, R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY)
 2. Values don't have extra spaces or quotes
 3. You redeployed after setting the env vars
+
+### Broken image URLs after installing plugin?
+
+If you have existing posts with images uploaded before the plugin was installed:
+
+1. Set `R2_MIGRATION_KEY` environment variable in Vercel
+2. Access the migration tools: `r2-tools.php?key=YOUR_KEY`
+3. Use "Replace URLs" to update post content
 
 ### Composer install fails locally?
 

@@ -4,14 +4,54 @@ If you uploaded media before installing the plugin, those images still have loca
 
 ## What Gets Migrated?
 
-- ✅ Original image files
+- ✅ Original image files (if they exist on the server)
 - ✅ All WordPress-generated thumbnails
 - ✅ URLs in post content and excerpts
 - ✅ Attachment metadata
 
-## Option 1: Using WP-CLI (Recommended)
+## 🚀 Recommended: Use R2 Migration Tools
 
-If you have WP-CLI access (most hosting providers support it):
+The easiest way to migrate is using the **unified migration tools interface**:
+
+### Step 1: Set Migration Key
+
+In Vercel/Netlify, add an environment variable:
+- **Key**: `R2_MIGRATION_KEY`
+- **Value**: Any random secret (e.g., `my-secret-key-12345`)
+- Redeploy your site
+
+### Step 2: Access Migration Tools
+
+Visit:
+```
+https://yoursite.com/wp-content/plugins/cloudflare-r2-media/r2-tools.php?key=YOUR_MIGRATION_KEY
+```
+
+### Step 3: Use the Dashboard
+
+The migration tools provide a clean interface with:
+
+1. **Dashboard** - Overview of your R2 setup
+2. **Configuration** - Check environment variables
+3. **Check URLs** - See where images currently point
+4. **Replace URLs** - Update post content (with dry-run option)
+5. **Upload to R2** - Upload local files to R2
+
+### For ServerlessWP Users
+
+Since Vercel/Netlify don't store files permanently, you'll usually only need to **Replace URLs**:
+
+1. Go to **Check URLs** tab - verify your images are already in R2
+2. Go to **Replace URLs** tab
+3. Enter:
+   - **Old URL**: `https://yoursite.com/wp-content/uploads`
+   - **New R2 URL**: `https://pub-xxxxx.r2.dev`
+4. Click **Dry Run** to preview changes
+5. Click **Run Live** to update
+
+## Alternative: WP-CLI
+
+If you have WP-CLI access:
 
 ```bash
 # SSH into your server or run locally
@@ -25,27 +65,6 @@ This will:
 1. Find all image attachments
 2. Upload them to R2 (with thumbnails)
 3. Update URLs in all posts
-
-## Option 2: Using WordPress Admin
-
-1. **Enable Debug Mode** temporarily in `wp-config.php`:
-   ```php
-   define('WP_DEBUG', true);
-   ```
-
-2. **Access the migration script** in your browser:
-   ```
-   https://yoursite.com/wp-content/plugins/cloudflare-r2-media/migrate-existing-media.php
-   ```
-
-3. **Wait for completion** - You'll see progress in the browser
-
-4. **Disable Debug Mode** in `wp-config.php`:
-   ```php
-   define('WP_DEBUG', false);
-   ```
-
-⚠️ **Security Note**: The script only runs when WP_DEBUG is enabled as a safety measure.
 
 ## Option 3: Local Development Then Deploy
 
