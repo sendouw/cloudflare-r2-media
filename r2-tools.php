@@ -337,6 +337,158 @@ function include_template_config() {
         </ul>
     </div>
     <?php endif; ?>
+
+    <h3>Configuration Validation</h3>
+    <?php
+    $validation_issues = array();
+    $validation_ok = array();
+
+    // Check if functions exist
+    if (function_exists('cloudflare_r2_env') && function_exists('cloudflare_r2_prefixed_base_url')) {
+        $base_url = cloudflare_r2_env('R2_PUBLIC_BASE_URL');
+        $prefix = cloudflare_r2_env('R2_OBJECT_PREFIX');
+
+        if (!empty($base_url) && !empty($prefix)) {
+            // Parse the base URL path
+            $base_path = wp_parse_url($base_url, PHP_URL_PATH);
+            $base_path = $base_path ? rtrim($base_path, '/') : '';
+            $prefix_normalized = trim(str_replace('\\', '/', $prefix), '/');
+
+            // Check 1: Base URL contains the prefix path
+            if ($base_path) {
+                $needle = '/' . $prefix_normalized;
+                if (substr($base_path, -strlen($needle)) === $needle) {
+                    $validation_issues[] = array(
+                        'type' => 'warning',
+                        'title' => 'Potential Configuration Redundancy',
+                        'message' => '<code>R2_PUBLIC_BASE_URL</code> already includes the prefix path. The plugin will automatically detect this and prevent duplication, but for clarity consider:',
+                        'suggestions' => array(
+                            '<strong>Current:</strong> R2_PUBLIC_BASE_URL=' . esc_html($base_url),
+                            '<strong>Recommended:</strong> R2_PUBLIC_BASE_URL=' . esc_html(substr($base_url, 0, strrpos($base_url, '/' . $prefix_normalized))),
+                            'Keep R2_OBJECT_PREFIX=' . esc_html($prefix)
+                        )
+                    );
+                } elseif (trim($base_path, '/') === $prefix_normalized) {
+                    $validation_issues[] = array(
+                        'type' => 'warning',
+                        'title' => 'Path Matches Prefix Exactly',
+                        'message' => 'The base URL path exactly matches the object prefix. The plugin will handle this, but verify this is intentional.',
+                        'suggestions' => array()
+                    );
+                } else {
+                    $validation_ok[] = 'URL prefix configuration looks correct';
+                }
+            }
+
+            // Check 2: Base URL format
+            if (!preg_match('#^https?://#', $base_url)) {
+                $validation_issues[] = array(
+                    'type' => 'error',
+                    'title' => 'Invalid Base URL Format',
+                    'message' => '<code>R2_PUBLIC_BASE_URL</code> must start with http:// or https://',
+                    'suggestions' => array()
+                );
+            } else {
+                $validation_ok[] = 'Base URL format is valid';
+            }
+
+            // Check 3: Prefix format
+            if (preg_match('#^/#', $prefix) || preg_match('#/$#', $prefix)) {
+                $validation_issues[] = array(
+                    'type' => 'info',
+                    'title' => 'Prefix Format',
+                    'message' => '<code>R2_OBJECT_PREFIX</code> should not have leading or trailing slashes. The plugin normalizes this automatically.',
+                    'suggestions' => array(
+                        '<strong>Current:</strong> ' . esc_html($prefix),
+                        '<strong>Normalized to:</strong> ' . esc_html(trim($prefix, '/'))
+                    )
+                );
+            } else {
+                $validation_ok[] = 'Object prefix format is correct';
+            }
+
+            // Check 4: Final URL validation
+            $final_url = cloudflare_r2_prefixed_base_url();
+            $expected_parts = array();
+
+            // Count how many times the prefix appears in the final URL
+            $prefix_occurrences = substr_count($final_url, $prefix_normalized);
+
+            if ($prefix_occurrences > 1) {
+                $validation_issues[] = array(
+                    'type' => 'error',
+                    'title' => 'Duplicate Prefix Detected in Final URL',
+                    'message' => 'The final URL contains the prefix multiple times. This indicates a configuration issue.',
+                    'suggestions' => array(
+                        '<strong>Final URL:</strong> ' . esc_html($final_url),
+                        '<strong>Prefix appears:</strong> ' . $prefix_occurrences . ' times'
+                    )
+                );
+            } else {
+                $validation_ok[] = 'Final URL has no duplicate prefixes';
+            }
+        }
+
+        // Check 5: Required variables
+        $required = array('R2_BUCKET', 'R2_ACCOUNT_ID', 'R2_ACCESS_KEY_ID', 'R2_SECRET_ACCESS_KEY');
+        $missing = array();
+        foreach ($required as $var) {
+            if (empty(cloudflare_r2_env($var))) {
+                $missing[] = $var;
+            }
+        }
+
+        if (!empty($missing)) {
+            $validation_issues[] = array(
+                'type' => 'error',
+                'title' => 'Missing Required Variables',
+                'message' => 'The following required environment variables are not set:',
+                'suggestions' => $missing
+            );
+        } else {
+            $validation_ok[] = 'All required environment variables are set';
+        }
+    }
+
+    // Display validation results
+    if (!empty($validation_ok) && empty($validation_issues)): ?>
+        <div class="success-box">
+            <h4>✅ Configuration Valid</h4>
+            <ul>
+                <?php foreach ($validation_ok as $msg): ?>
+                    <li><?php echo esc_html($msg); ?></li>
+                <?php endforeach; ?>
+            </ul>
+        </div>
+    <?php endif; ?>
+
+    <?php if (!empty($validation_ok) && !empty($validation_issues)): ?>
+        <div class="info-box">
+            <h4>✓ Passing Checks</h4>
+            <ul>
+                <?php foreach ($validation_ok as $msg): ?>
+                    <li><?php echo esc_html($msg); ?></li>
+                <?php endforeach; ?>
+            </ul>
+        </div>
+    <?php endif; ?>
+
+    <?php foreach ($validation_issues as $issue):
+        $box_class = $issue['type'] === 'error' ? 'warning-box' : ($issue['type'] === 'warning' ? 'warning-box' : 'info-box');
+        $icon = $issue['type'] === 'error' ? '❌' : ($issue['type'] === 'warning' ? '⚠️' : 'ℹ️');
+    ?>
+        <div class="<?php echo $box_class; ?>">
+            <h4><?php echo $icon; ?> <?php echo esc_html($issue['title']); ?></h4>
+            <p><?php echo $issue['message']; ?></p>
+            <?php if (!empty($issue['suggestions'])): ?>
+                <ul>
+                    <?php foreach ($issue['suggestions'] as $suggestion): ?>
+                        <li><?php echo $suggestion; ?></li>
+                    <?php endforeach; ?>
+                </ul>
+            <?php endif; ?>
+        </div>
+    <?php endforeach; ?>
     <?php
 }
 

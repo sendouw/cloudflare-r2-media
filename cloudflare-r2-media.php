@@ -257,10 +257,29 @@ if ( ! function_exists( 'cloudflare_r2_bootstrap' ) ) {
 		$prefix = cloudflare_r2_object_prefix();
 
 		if ( empty( $prefix ) ) {
+			cloudflare_r2_debug( 'prefixed_base_url=' . $base . ' (no prefix)' );
 			return $base;
 		}
 
-		return rtrim( $base, '/' ) . '/' . $prefix;
+		$base   = rtrim( $base, '/' );
+		$prefix = trim( str_replace( '\\', '/', $prefix ), '/' );
+
+		// If the configured public base URL already contains the prefix path,
+		// avoid appending it again to prevent duplicated segments.
+		$base_path = wp_parse_url( $base, PHP_URL_PATH );
+		$base_path = $base_path ? rtrim( $base_path, '/' ) : '';
+
+		if ( $base_path ) {
+			$needle = '/' . $prefix;
+			if ( substr( $base_path, -strlen( $needle ) ) === $needle || trim( $base_path, '/' ) === $prefix ) {
+				cloudflare_r2_debug( 'duplicate_prefix_detected base=' . $base . ' prefix=' . $prefix . ' (skipped append)' );
+				return $base; // Prefix is already present in base URL.
+			}
+		}
+
+		$final_url = $base . '/' . $prefix;
+		cloudflare_r2_debug( 'prefixed_base_url=' . $final_url );
+		return $final_url;
 	}
 
 	/**
